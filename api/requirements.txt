@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+twilio
+phonenumbers
+passlib[bcrypt]
+itsdangerous
+python-multipart
+httpx

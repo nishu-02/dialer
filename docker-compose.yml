@@ -1,0 +1,18 @@
+services:
+  api:
+    build: ./api
+    env_file: ./api/.env
+    volumes:
+      - dialer-data:/data
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    ports:
+      - '80:80'
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  dialer-data:

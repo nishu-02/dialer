@@ -1,0 +1,6 @@
+body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; }
+input, button { font-size: 1rem; padding: 6px; margin-right: 6px; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+.error { color: crimson; }
+.login { display: flex; flex-direction: column; gap: 8px; max-width: 240px; }

@@ -25,8 +25,8 @@ async def get_recording(sid: str, user_id: int = Depends(require_auth)):
     url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Recordings/{sid}.mp3"
     auth = (account_sid, os.environ["TWILIO_AUTH_TOKEN"])
 
-    client = httpx.AsyncClient()
-    resp = await client.send(client.build_request("GET", url, auth=auth), stream=True)
+    client = httpx.AsyncClient(auth=auth)
+    resp = await client.send(client.build_request("GET", url), stream=True)
     if resp.is_error:
         body = await resp.aread()
         await resp.aclose()

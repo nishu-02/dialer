@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Request
 
 from ..db import get_conn
-from ..phone import normalize_and_classify
 from ..twilio_client import validate_twilio_request
 
 router = APIRouter()
@@ -15,24 +14,14 @@ async def status(request: Request):
     call_sid = form.get("CallSid")
     call_status = form.get("CallStatus")
     duration = form.get("CallDuration")
-    to_number = form.get("To", "")
-    # Client identity set in Device.connect's caller shows up as "client:<user_id>" on the From leg.
-    from_field = form.get("From", "")
-    user_id = int(from_field.split(":")[1]) if from_field.startswith("client:") else None
 
     conn = get_conn()
-    existing = conn.execute("SELECT sid FROM calls WHERE sid = ?", (call_sid,)).fetchone()
-    if existing:
-        conn.execute(
-            "UPDATE calls SET status = ?, duration = ? WHERE sid = ?",
-            (call_status, int(duration) if duration else None, call_sid),
-        )
-    else:
-        parsed = normalize_and_classify(to_number) or {"region": "international"}
-        conn.execute(
-            "INSERT INTO calls (sid, user_id, to_number, region, status, duration) VALUES (?, ?, ?, ?, ?, ?)",
-            (call_sid, user_id, to_number, parsed["region"], call_status, int(duration) if duration else None),
-        )
+    # /twiml/voice always runs before a call can connect, so the row already exists by
+    # now; inserting a fallback row here raced it and could win with a blank to_number.
+    conn.execute(
+        "UPDATE calls SET status = ?, duration = ? WHERE sid = ?",
+        (call_status, int(duration) if duration else None, call_sid),
+    )
     conn.commit()
     conn.close()
     return None

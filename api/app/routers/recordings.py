@@ -3,6 +3,7 @@ import os
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
 
 from ..auth import require_auth
 from ..db import get_conn
@@ -25,6 +26,19 @@ async def get_recording(sid: str, user_id: int = Depends(require_auth)):
     auth = (account_sid, os.environ["TWILIO_AUTH_TOKEN"])
 
     client = httpx.AsyncClient()
-    req = client.build_request("GET", url, auth=auth)
-    resp = await client.send(req, stream=True)
-    return StreamingResponse(resp.aiter_bytes(), media_type="audio/mpeg")
+    resp = await client.send(client.build_request("GET", url, auth=auth), stream=True)
+    if resp.is_error:
+        body = await resp.aread()
+        await resp.aclose()
+        await client.aclose()
+        raise HTTPException(status_code=resp.status_code, detail=body.decode(errors="replace"))
+
+    async def cleanup():
+        await resp.aclose()
+        await client.aclose()
+
+    return StreamingResponse(
+        resp.aiter_bytes(),
+        media_type=resp.headers.get("content-type", "audio/mpeg"),
+        background=BackgroundTask(cleanup),
+    )

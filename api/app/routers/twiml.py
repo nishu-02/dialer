@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from twilio.twiml.voice_response import Dial, VoiceResponse
 
+from ..db import get_conn
 from ..phone import normalize_and_classify
 from ..twilio_client import validate_twilio_request
 
@@ -20,6 +21,19 @@ async def voice(request: Request):
     if not parsed:
         twiml.say("Invalid number.")
         return Response(content=str(twiml), media_type="text/xml")
+
+    # The Application-level status callback's To isn't reliably the dialed number,
+    # so the call row is created here, where To is known for certain, keyed by CallSid.
+    call_sid = form.get("CallSid")
+    from_field = form.get("From", "")
+    user_id = int(from_field.split(":")[1]) if from_field.startswith("client:") else None
+    conn = get_conn()
+    conn.execute(
+        "INSERT OR IGNORE INTO calls (sid, user_id, to_number, region, status) VALUES (?, ?, ?, ?, 'ringing')",
+        (call_sid, user_id, parsed["e164"], parsed["region"]),
+    )
+    conn.commit()
+    conn.close()
 
     dial = Dial(
         caller_id=os.environ["TWILIO_NUMBER"],

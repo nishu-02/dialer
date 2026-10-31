@@ -1,6 +1,242 @@
-body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; }
-input, button { font-size: 1rem; padding: 6px; margin-right: 6px; }
-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-.error { color: crimson; }
-.login { display: flex; flex-direction: column; gap: 8px; max-width: 240px; }
+:root {
+  --bg: #f7f7f8;
+  --card: #ffffff;
+  --border: #e8e8ea;
+  --text: #1a1a1e;
+  --text-dim: #8a8a92;
+  --accent: #2d6cdf;
+  --accent-dim: #eaf0fd;
+  --danger: #d94a4a;
+  --danger-dim: #fbeaea;
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+input,
+button {
+  font-family: inherit;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+/* --- Login --- */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-card h1 {
+  font-size: 1.25rem;
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.login-card input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+.login-card button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+/* --- Dialer --- */
+
+.page {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.dial-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.connection-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dial-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dial-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1.3rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.dial-input:disabled {
+  opacity: 0.6;
+}
+
+.call-btn,
+.hangup-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.call-btn {
+  background: var(--accent);
+  color: white;
+}
+
+.call-btn:disabled {
+  background: var(--border);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.hangup-btn {
+  background: var(--danger);
+  color: white;
+}
+
+/* --- History --- */
+
+.history h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+}
+
+.history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.call-row {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.call-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.call-number {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.call-region {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.call-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+.call-meta audio {
+  height: 28px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-ok {
+  background: #e6f6ea;
+  color: #2a9d4a;
+}
+
+.badge-bad {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.badge-pending {
+  background: var(--accent-dim);
+  color: var(--accent);
+}

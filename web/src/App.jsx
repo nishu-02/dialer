@@ -11,6 +11,21 @@ async function api(path, opts) {
   return res.status === 204 ? null : res.json();
 }
 
+function formatDuration(seconds) {
+  if (seconds == null) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function timeAgo(iso) {
+  const diff = (Date.now() - new Date(iso + 'Z').getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return new Date(iso + 'Z').toLocaleDateString();
+}
+
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,19 +42,26 @@ function Login({ onLogin }) {
   }
 
   return (
-    <form onSubmit={submit} className="login">
-      <h1>Dialer login</h1>
-      <input placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input
-        placeholder="password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      {error && <p className="error">{error}</p>}
-      <button type="submit">Log in</button>
-    </form>
+    <div className="login-screen">
+      <form onSubmit={submit} className="login-card">
+        <h1>Dialer</h1>
+        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+        <input
+          placeholder="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {error && <p className="error">{error}</p>}
+        <button type="submit">Log in</button>
+      </form>
+    </div>
   );
+}
+
+function StatusBadge({ status }) {
+  const tone = status === 'completed' ? 'ok' : status === 'failed' || status === 'no-answer' ? 'bad' : 'pending';
+  return <span className={`badge badge-${tone}`}>{status}</span>;
 }
 
 function Dialer() {
@@ -48,16 +70,26 @@ function Dialer() {
   const [error, setError] = useState('');
   const [deviceReady, setDeviceReady] = useState(false);
   const [callState, setCallState] = useState('idle'); // idle | connecting | in-call
+  const [elapsed, setElapsed] = useState(0);
   const deviceRef = useRef(null);
   const activeCallRef = useRef(null);
+  const timerRef = useRef(null);
 
   async function refresh() {
     setCalls(await api('/calls'));
   }
 
+  // Twilio's status webhook can land a moment after hangup, so a single refresh
+  // right away often still shows the stale row — re-poll a couple more times.
+  function refreshSoon() {
+    refresh();
+    setTimeout(refresh, 1500);
+    setTimeout(refresh, 4000);
+  }
+
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 3000); // poll; websockets are overkill for v1
+    const id = setInterval(refresh, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -81,17 +113,24 @@ function Dialer() {
   async function call(e) {
     e.preventDefault();
     setError('');
-    if (!deviceRef.current) return;
+    if (!deviceRef.current || !to.trim()) return;
     try {
       setCallState('connecting');
-      const conn = await deviceRef.current.connect({ params: { To: to } });
+      const conn = await deviceRef.current.connect({ params: { To: to.trim() } });
       activeCallRef.current = conn;
-      conn.on('accept', () => setCallState('in-call'));
+      conn.on('accept', () => {
+        setCallState('in-call');
+        setElapsed(0);
+        timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      });
       conn.on('disconnect', () => {
+        clearInterval(timerRef.current);
         setCallState('idle');
-        refresh();
+        setTo('');
+        refreshSoon();
       });
       conn.on('error', (e) => {
+        clearInterval(timerRef.current);
         setError(e.message);
         setCallState('idle');
       });
@@ -106,55 +145,54 @@ function Dialer() {
   }
 
   return (
-    <div className="dialer">
-      <p className="status">{deviceReady ? 'Ready to call' : 'Connecting to Twilio…'}</p>
-      <form onSubmit={call}>
-        <input
-          placeholder="+91 9876543210"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          disabled={!deviceReady || callState !== 'idle'}
-        />
-        {callState === 'idle' ? (
-          <button type="submit" disabled={!deviceReady}>
-            Call
-          </button>
-        ) : (
-          <button type="button" onClick={hangUp}>
-            Hang up ({callState})
-          </button>
-        )}
-      </form>
-      {error && <p className="error">{error}</p>}
+    <div className="page">
+      <div className="dial-card">
+        <p className="connection-status">{deviceReady ? 'Ready' : 'Connecting…'}</p>
 
-      <table>
-        <thead>
-          <tr>
-            <th>To</th>
-            <th>Region</th>
-            <th>Status</th>
-            <th>Duration</th>
-            <th>Recording</th>
-          </tr>
-        </thead>
-        <tbody>
+        <form onSubmit={call} className="dial-form">
+          <input
+            className="dial-input"
+            placeholder="Enter number"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            disabled={!deviceReady || callState !== 'idle'}
+            autoFocus
+          />
+          {callState === 'idle' ? (
+            <button type="submit" className="call-btn" disabled={!deviceReady || !to.trim()}>
+              Call
+            </button>
+          ) : (
+            <button type="button" className="hangup-btn" onClick={hangUp}>
+              {callState === 'connecting' ? 'Connecting…' : `End · ${formatDuration(elapsed)}`}
+            </button>
+          )}
+        </form>
+        {error && <p className="error">{error}</p>}
+      </div>
+
+      <div className="history">
+        <h2>Recent calls</h2>
+        {calls.length === 0 && <p className="empty">No calls yet</p>}
+        <ul>
           {calls.map((c) => (
-            <tr key={c.sid}>
-              <td>{c.to_number}</td>
-              <td>{c.region}</td>
-              <td>{c.status}</td>
-              <td>{c.duration ?? '-'}</td>
-              <td>
-                {c.recording_sid ? (
-                  <audio controls src={`/api/recordings/${c.recording_sid}`} />
-                ) : (
-                  '-'
+            <li key={c.sid} className="call-row">
+              <div className="call-main">
+                <span className="call-number">{c.to_number}</span>
+                <span className="call-region">{c.region === 'national' ? 'India' : 'International'}</span>
+              </div>
+              <div className="call-meta">
+                <StatusBadge status={c.status} />
+                <span className="call-duration">{formatDuration(c.duration)}</span>
+                <span className="call-time">{timeAgo(c.created_at)}</span>
+                {c.recording_sid && (
+                  <audio controls preload="none" src={`/api/recordings/${c.recording_sid}`} />
                 )}
-              </td>
-            </tr>
+              </div>
+            </li>
           ))}
-        </tbody>
-      </table>
+        </ul>
+      </div>
     </div>
   );
 }
